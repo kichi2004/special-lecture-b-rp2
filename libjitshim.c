@@ -36,6 +36,11 @@ int jit_free(void *start, const size_t size) {
     return munmap(start, len);
 }
 
+int add(const int a, const int b)
+{
+    return a + b;
+}
+
 int get_errno() {
     return errno;
 }
