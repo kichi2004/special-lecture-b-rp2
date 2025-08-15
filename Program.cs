@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
@@ -6,7 +7,6 @@ using final;
 using static JitShim;
 
 TinyJit.DemoBf();
-;
 
 internal static partial class NativeMethods
 {
@@ -158,7 +158,7 @@ internal delegate int MyFunc();
 internal delegate int BinOp(int a, int b);
 
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-internal delegate void BrainfuckRunnerDelegate(IntPtr ptr);
+public delegate void BrainfuckRunnerDelegate(IntPtr ptr);
 
 // 0x0131 C9C0
 public static class TinyJit
@@ -234,11 +234,11 @@ public static class TinyJit
 
     public static void DemoBf()
     {
-        const string brainfuckSource = @"++++++[->++++>>+>+>-<<<<<]>[<++++>>+++>++++>>+++>+++++>+++++>>>>>>++>>++<
-<<<<<<<<<<<<<-]<++++>+++>-->+++>->>--->++>>>+++++[->++>++<<]<<<<<<<<<<[->
--[>>>>>>>]>[<+++>.>.>>>>..>>>+<]<<<<<-[>>>>]>[<+++++>.>.>..>>>+<]>>>>+<-[
-<<<]<[[-<<+>>]>>>+>+<<<<<<[->>+>+>-<<<<]<]>>[[-]<]>[>>>[>.<<.<<<]<[.<<<<]
->]>.<<<<<<<<<<<]";
+        const string brainfuckSource = 
+               @"++++[>+++++<-]>[<+++++>-]+<+[>[>+>+<<-]++>>[<<+>>-]>>>[-]++>[-]+
+>>>+[[-]++++++>>>]<<<[[<++++++++<++>>-]+<.<[>----<-]<]
+<<[>>>>>[>>>[-]+++++++++<[>-<-]+++++++++>[-[<->-]+[<<<]]<[>+<-]>]<<-]<<-]";
+        var tokens = BrainfuckParser.Parse(brainfuckSource);
             
         // 20 KB
         nuint size = 1024 * 20;
@@ -256,9 +256,17 @@ public static class TinyJit
             {
                 fixed (byte* tapePtr = tape)
                 {
-                    Console.WriteLine($"Pointer to tape = {(IntPtr) tapePtr:X}");
-                    var byteCode = BrainfuckParser.MakeArm64(BrainfuckParser.Parse(brainfuckSource), new IntPtr(tapePtr));
+                    Console.WriteLine($"Pointer to tape = 0x{(IntPtr) tapePtr:X}");
+                    Console.WriteLine($"Pointer to code = 0x{mem:X}");
+
+                    var byteCode = BrainfuckParser.MakeArm64(tokens, new IntPtr(tapePtr));
                     Console.WriteLine(string.Join("", byteCode.Select(x => $"{x:X2}")));
+
+                    if (size < (nuint)byteCode.Length)
+                    {
+                        Console.WriteLine($"code > {size} B");
+                        return;
+                    }
                     
                     var span = new Span<byte>((void*)mem, (int) size);
                     byteCode.CopyTo(span);
@@ -266,20 +274,29 @@ public static class TinyJit
                         throw new InvalidOperationException($"Failed jit_make_executable (errno = {GetErrno()} {ErrnoMap[GetErrno()]})");
 
 
+                    Console.Write("Press key to execute...");
+                    Console.Read();
                     var fn = Marshal.GetDelegateForFunctionPointer<BrainfuckRunnerDelegate>(mem);
+                    var sw = Stopwatch.StartNew();
                     fn(new IntPtr(tapePtr));
+                    Console.WriteLine($"JIT Time: {sw.ElapsedMilliseconds} ms");
                     FreeFunction(fn, size);
 
                     Console.WriteLine("Tape: ");
                     for (int i = 0; i < tape.Length; i++)
                     {
-                        if (tape[i] == 0) break;
+                        if (tape[i] == 0 && i > 7) break;
                         Console.WriteLine($"{tape[i]} ({(char) tape[i]})");
                     }
                     Console.WriteLine();
                 }
             }
 
+            {
+                var sw = Stopwatch.StartNew();
+                new BrainfuckRunner().Run(tokens);
+                Console.WriteLine($"Interpreter Time: {sw.ElapsedMilliseconds} ms");
+            }
         }
         catch(Exception e)
         {

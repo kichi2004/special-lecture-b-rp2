@@ -44,7 +44,7 @@ public static class Arm64Jit
                   | (uint) imm12 << 10
                   | (uint) rn << 5
                   | rd;
-        Console.Error.WriteLine($"ADD W{rd}, W{rn}, #{imm12} -> {ret:X8}");
+        // Console.Error.WriteLine($"ADD W{rd}, W{rn}, #{imm12} -> {ret:X8}");
         return IntToBytes(ret);
     }
     
@@ -62,7 +62,7 @@ public static class Arm64Jit
                    | (uint) imm12 << 10
                    | (uint) rn << 5
                    | rd;
-        Console.Error.WriteLine($"ADD X{rd}, X{rn}, #{imm12} -> {ret:X8}");
+        // Console.Error.WriteLine($"ADD X{rd}, X{rn}, #{imm12} -> {ret:X8}");
         return IntToBytes(ret);
     }
 
@@ -80,7 +80,7 @@ public static class Arm64Jit
                   | (uint) imm12 << 10
                   | (uint) rn << 5
                   | rd;
-        Console.Error.WriteLine($"SUB W{rd}, W{rn}, #{imm12} -> {ret:X8}");
+        // Console.Error.WriteLine($"SUB W{rd}, W{rn}, #{imm12} -> {ret:X8}");
         return IntToBytes(ret);
     }
     
@@ -98,7 +98,7 @@ public static class Arm64Jit
                    | (uint) imm12 << 10
                    | (uint) rn << 5
                    | rd;
-        Console.Error.WriteLine($"SUB X{rd}, X{rn}, #{imm12} -> {ret:X8}");
+        // Console.Error.WriteLine($"SUB X{rd}, X{rn}, #{imm12} -> {ret:X8}");
         return IntToBytes(ret);
     }
 
@@ -108,7 +108,7 @@ public static class Arm64Jit
         CheckRegister(rn);
         uint ret = 0b1101_0110_0101_1111_0000_0000_0000_0000
                   | (uint) (rn << 5);
-        Console.Error.WriteLine($"RET W{rn} -> {ret:X8}");
+        // Console.Error.WriteLine($"RET W{rn} -> {ret:X8}");
         return IntToBytes(ret);
     }
 
@@ -116,7 +116,7 @@ public static class Arm64Jit
     /// STP (Pre-Index, 64 bit)
     /// STP Xt1, Xt2, [Xn|SP, #imm]!
     /// </summary>
-    public static byte[] StpPreIndex64(sbyte imm7, byte rt2, byte rn, byte rt)
+    public static byte[] Stp64(byte rt, byte rt2, byte rn, sbyte imm7, bool preIndex)
     {
         if (rn != SP) CheckRegister(rn);
         CheckRegister(rt);
@@ -126,14 +126,36 @@ public static class Arm64Jit
         {
             throw new ArgumentOutOfRangeException(nameof(imm7), "imm7 must be 7bit integer");
         }
+
+        uint ret = 0b1010_1000_1000_0000_0000_0000_0000_0000
+                   | (uint)(preIndex ? 1 : 0) << 24
+                   | (uint)imm7 << 15
+                   | (uint)rt2 << 10
+                   | (uint)rn << 5
+                   | rt;
         
-        uint ret = 0b1010_1001_1000_0000_0000_0000_0000_0000
-                  | (uint) imm7 << 15
-                  | (uint) rt2 << 10
-                  | (uint) rn << 5
-                  | rt;
+        // Console.Error.WriteLine($"STP W{rt}, W{rt2}, [{rn}, #{imm7}]! -> {ret:X8}");
+        return IntToBytes(ret);
+    }
+
+    public static byte[] Stp64SignedOffset(byte rt, byte rt2, byte rn, sbyte imm7)
+    {
+        if (rn != SP) CheckRegister(rn);
+        CheckRegister(rt);
+        CheckRegister(rt2);
         
-        Console.Error.WriteLine($"STP W{rt}, W{rt2}, [{rn}, #{imm7}]! -> {ret:X8}");
+        if ((imm7 & BitFlag7Bit) != imm7)
+        {
+            throw new ArgumentOutOfRangeException(nameof(imm7), "imm7 must be 7bit integer");
+        }
+        
+        uint ret = 0b1010_1001_0000_0000_0000_0000_0000_0000
+                   | (uint)imm7 << 15
+                   | (uint)rt2 << 10
+                   | (uint)rn << 5
+                   | rt;
+        
+        // Console.Error.WriteLine($"STP W{rt}, W{rt2}, [{rn}, #{imm7}]! -> {ret:X8}");
         return IntToBytes(ret);
     }
 
@@ -151,7 +173,7 @@ public static class Arm64Jit
                   | (uint) rn << 5
                   | rd;
         
-        Console.Error.WriteLine($"MOV W{rd}, W{rn} -> {ret:X8}");
+        // Console.Error.WriteLine($"MOV W{rd}, W{rn} -> {ret:X8}");
         return IntToBytes(ret);
     }
 
@@ -164,7 +186,7 @@ public static class Arm64Jit
                    | (uint) rn << 5
                    | rd;
         
-        Console.Error.WriteLine($"MOV X{rd}, X{rn} -> {ret:X8}");
+        // Console.Error.WriteLine($"MOV X{rd}, X{rn} -> {ret:X8}");
         return IntToBytes(ret);
     }
 
@@ -175,7 +197,7 @@ public static class Arm64Jit
     {
         CheckRegister(rm);
         CheckRegister(rd);
-        Console.Error.WriteLine($"MOV W{rd}, W{rm}");
+        // Console.Error.WriteLine($"MOV W{rd}, W{rm}");
         return OrrShiftedRegisterInternal(false, rd, WZR, rm);
     }
     
@@ -186,7 +208,7 @@ public static class Arm64Jit
     {
         CheckRegister(rm);
         CheckRegister(rd);
-        Console.Error.WriteLine($"MOV X{rd}, X{rm}");
+        // Console.Error.WriteLine($"MOV X{rd}, X{rm}");
         return OrrShiftedRegisterInternal(true, rd, XZR, rm);
     }
 
@@ -198,7 +220,7 @@ public static class Arm64Jit
                   | (uint) imm << 5
                   | wd;
        
-        Console.Error.WriteLine($"MOVZ X{wd}, #{imm}, LSL #{shift} -> {ret:X8}");
+        // Console.Error.WriteLine($"MOVZ X{wd}, #{imm}, LSL #{shift} -> {ret:X8}");
         return IntToBytes(ret); 
     }
 
@@ -208,7 +230,7 @@ public static class Arm64Jit
                   | (uint) shift << 21
                   | (uint) imm << 5
                   | wd;
-        Console.Error.WriteLine($"MOVK X{wd}, #{imm}, LSL #{shift} -> {ret:X8}");
+        // Console.Error.WriteLine($"MOVK X{wd}, #{imm}, LSL #{shift} -> {ret:X8}");
         return IntToBytes(ret);
     }
 
@@ -227,7 +249,7 @@ public static class Arm64Jit
     } 
     
     /// <summary>
-    /// LDP (Pre-Index, 64bit)
+    /// LDP (Post-Index, 64bit)
     /// LDP Xt1, Xt2, [Xn|SP, #imm]!
     /// </summary>
     public static byte[] Ldp64(byte rt, byte rt2, byte rn, sbyte imm7, bool preIndex = true)
@@ -235,6 +257,9 @@ public static class Arm64Jit
         if (rn != SP) CheckRegister(rn);
         CheckRegister(rt);
         CheckRegister(rt2);
+        
+        if ((imm7 & BitFlag7Bit) != imm7)
+            throw new ArgumentOutOfRangeException(nameof(imm7), "imm7 must be 7bit integer");
 
         uint ret = 0b1010_1000_1100_0000_0000_0000_0000_0000
                    | (uint)(preIndex ? 1 : 0) << 24
@@ -243,7 +268,26 @@ public static class Arm64Jit
                    | (uint)rn << 5
                    | rt;
         
-        Console.Error.WriteLine($"LDP W{rt}, W{rt2}, [{rn}, #{imm7}]! -> {ret:X8}");
+        // Console.Error.WriteLine($"LDP W{rt}, W{rt2}, [{rn}, #{imm7}]! -> {ret:X8}");
+        return IntToBytes(ret);
+    }
+
+    public static byte[] Ldp64SignedOffset(byte rt, byte rt2, byte rn, sbyte imm7)
+    {
+        if (rn != SP) CheckRegister(rn);
+        CheckRegister(rt);
+        CheckRegister(rt2);
+        
+        if ((imm7 & BitFlag7Bit) != imm7)
+            throw new ArgumentOutOfRangeException(nameof(imm7), "imm7 must be 7bit integer");
+
+        uint ret = 0b1010_1001_0100_0000_0000_0000_0000_0000
+                   | (uint)imm7 << 15
+                   | (uint)rt2 << 10
+                   | (uint)rn << 5
+                   | rt;
+        
+        // Console.Error.WriteLine($"LDP W{rt}, W{rt2}, [{rn}, #{imm7}]! -> {ret:X8}");
         return IntToBytes(ret);
     }
 
@@ -259,18 +303,18 @@ public static class Arm64Jit
                    | (uint)rn << 5
                    | rt;
         
-        Console.Error.WriteLine($"LDRB W{rt}, [{rn}, #{imm9}]{(preIndex ? "!" : "")} -> {ret:X8}");
+        // Console.Error.WriteLine($"LDRB W{rt}, [{rn}, #{imm9}]{(preIndex ? "!" : "")} -> {ret:X8}");
         return IntToBytes(ret);
     }
 
-    public static byte[] LdrbImmediateUnsignedOffset(byte rt, byte rn, int imm12)
+    public static byte[] LdrbImmediateUnsignedOffset(byte rt, byte rn, int imm12 = 0)
     {
         uint ret = 0b11_1001_0100_0000_0000_0000_0000_0000
                    | (uint)imm12 << 10
                    | (uint)rn << 5
                    | rt;
         
-        Console.Error.WriteLine($"LDRB W{rt}, [{rn}, #{imm12}] -> {ret:X8}");
+        // Console.Error.WriteLine($"LDRB W{rt}, [{rn}, #{imm12}] -> {ret:X8}");
         return IntToBytes(ret);
     }
     
@@ -278,14 +322,14 @@ public static class Arm64Jit
     /// Store register byte (immediate)
     /// STRB Wt, [Xn|SP], #simm
     /// </summary>
-    public static byte[] StrbImmediateUnsignedOffset(byte rt, byte rn, short imm12)
+    public static byte[] StrbImmediateUnsignedOffset(byte rt, byte rn, short imm12 = 0)
     {
         uint ret = 0b0011_1001_0000_0000_0000_0000_0000_0000
                    | (uint)imm12 << 10
                    | (uint)rn << 5
                    | rt;
         
-        Console.Error.WriteLine($"STRB W{rt}, [{rn}, #{imm12}] -> {ret:X8}");
+        // Console.Error.WriteLine($"STRB W{rt}, [{rn}, #{imm12}] -> {ret:X8}");
         return IntToBytes(ret);
     }
     
@@ -315,7 +359,7 @@ public static class Arm64Jit
                   | (uint) imm12 << 10
                   | (uint) rn << 5;
         
-        Console.Error.WriteLine($"CMP W{rn}, #{imm12}{(shift ? ", LSL #12" : "")}");
+        // Console.Error.WriteLine($"CMP W{rn}, #{imm12}{(shift ? ", LSL #12" : "")}");
         return IntToBytes(ret);
     }
     
@@ -330,7 +374,7 @@ public static class Arm64Jit
         uint ret = 0b0001_0100_0000_0000_0000_0000_0000_0000 
                    | (uint)imm26;
 
-        Console.Error.WriteLine($"B #{((imm26 & (1 << 25)) == 0 ? imm26 : imm26 - (1 << 26))}");
+        // Console.Error.WriteLine($"B #{((imm26 & (1 << 25)) == 0 ? imm26 : imm26 - (1 << 26))}");
         return IntToBytes(ret);
     }
 
@@ -345,7 +389,7 @@ public static class Arm64Jit
                    | (uint)imm19 << 5
                    | (uint)cond;
         
-        Console.Error.WriteLine($"B.{cond} #{imm19}");
+        // Console.Error.WriteLine($"B.{cond} #{imm19}");
         return IntToBytes(ret);
     }
 
@@ -355,7 +399,7 @@ public static class Arm64Jit
         uint ret = 0b1101_0110_0011_1111_0000_0000_0000_0000
                    | (uint)rn << 5;
         
-        Console.Error.WriteLine($"BLR W{rn}");
+        // Console.Error.WriteLine($"BLR W{rn}");
         return IntToBytes(ret);
     }
 }
